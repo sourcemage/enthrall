@@ -1,0 +1,156 @@
+#!/bin/sh
+
+function prepare_menu_location {
+# moving the old menu out of the way
+
+  if [ "$OWN_MENU" == "true" ]; then
+    [ -e "$WINDOWMAKER_USER_MENU" ] &&
+    mv $WINDOWMAKER_USER_MENU $WINDOWMAKER_USER_MENU.$(date +%Y%m%d%H%M%S)
+    WMAKERMENU="$WINDOWMAKER_USER_MENU"
+  else
+    [ -e "$WINDOWMAKER_MENU" ] &&
+    mv $WINDOWMAKER_MENU $WINDOWMAKER_MENU.$(date +%Y%m%d%H%M%S)
+    WMAKERMENU="$WINDOWMAKER_MENU"
+  fi
+
+  local menuname=`basename "$WMAKERMENU"`
+  local menudir=`echo "$WMAKERMENU"|sed "s/\/$menuname//"`
+  [ -d "$menudir" ] || mkdir -p "$menudir"
+}
+
+function start_wmakermenu {
+# the start of the windowmaker menu
+cat >> $WMAKERMENU << EOF
+("Applications",
+("Info",
+("Info Panel", INFO_PANEL),
+("Legal", LEGAL_PANEL),
+("System Console", EXEC, "xconsole"),
+("System Load", SHEXEC, "xosview || xload"),
+("Process List", EXEC, "xterm -e top"),
+("Manual Browser", EXEC, "xman")
+),
+("Run...", SHEXEC, "%a(Run,Type command to run:)"),
+("XTerm", EXEC, "xterm -sb"),
+("Workspaces", WORKSPACE_MENU),
+EOF
+}
+
+function close_wmakermenu {
+# closing the windowmaker menu
+cat >> $WMAKERMENU << EOF
+("Selection",
+("Copy", SHEXEC, "echo '%s' | wxcopy"),
+("Mail To", EXEC, "xterm -name mail -T Pine -e pine %s"),
+("Navigate", EXEC, "mozilla %s"),
+("Search in Manual", EXEC, "MANUAL_SEARCH(%s)")
+),
+("Commands",
+("Hide Others", HIDE_OTHERS),
+("Show All", SHOW_ALL),
+("Arrange Icons", ARRANGE_ICONS),
+("Refresh", REFRESH),
+("Lock", EXEC, "xlock -allowroot -usefirst")
+),
+("Appearance",
+("Themes", OPEN_MENU, "-noext /usr/share/WindowMaker/Themes $HOME/GNUstep/Library/WindowMaker/Themes WITH setstyle"),
+("Styles", OPEN_MENU, "-noext /usr/share/WindowMaker/Styles $HOME/GNUstep/Library/WindowMaker/Styles WITH setstyle"),
+("Icon Sets", OPEN_MENU, "-noext /usr/share/WindowMaker/IconSets $HOME/GNUstep/Library/WindowMaker/IconSets WITH seticons"),
+("Background",
+("Solid",
+("Black", EXEC, "wdwrite WindowMaker WorkspaceBack '(solid, black)'"),
+("Blue",  EXEC, "wdwrite WindowMaker WorkspaceBack '(solid, \\\"#505075\\\")'"),
+("Indigo", EXEC, "wdwrite WindowMaker WorkspaceBack '(solid, \\\"#243e6c\\\")'"),
+("Bluemarine", EXEC, "wdwrite WindowMaker WorkspaceBack '(solid, \\\"#224477\\\")'"),
+("Purple", EXEC, "wdwrite WindowMaker WorkspaceBack '(solid, \\\"#554466\\\")'"),
+("Wheat", EXEC, "wdwrite WindowMaker WorkspaceBack '(solid, wheat4)'"),
+("Dark Gray", EXEC, "wdwrite WindowMaker WorkspaceBack '(solid, \\\"#333340\\\")'"),
+("Wine", EXEC, "wdwrite WindowMaker WorkspaceBack '(solid, \\\"#400020\\\")'")
+),
+("Gradient",
+("Sunset", EXEC, "wdwrite WindowMaker WorkspaceBack '(mvgradient, deepskyblue4, black, deepskyblue4, tomato4)'"),
+("Sky", EXEC, "wdwrite WindowMaker WorkspaceBack '(vgradient, blue4, white)'"),
+("Blue Shades",   EXEC, "wdwrite WindowMaker WorkspaceBack '(vgradient, \\\"#7080a5\\\", \\\"#101020\\\")'"),
+("Indigo Shades", EXEC, "wdwrite WindowMaker WorkspaceBack '(vgradient, \\\"#746ebc\\\", \\\"#242e4c\\\")'"),
+("Purple Shades", EXEC, "wdwrite WindowMaker WorkspaceBack '(vgradient, \\\"#654c66\\\", \\\"#151426\\\")'"),
+("Wheat Shades",  EXEC, "wdwrite WindowMaker WorkspaceBack '(vgradient, \\\"#a09060\\\", \\\"#302010\\\")'"),
+("Grey Shades",   EXEC, "wdwrite WindowMaker WorkspaceBack '(vgradient, \\\"#636380\\\", \\\"#131318\\\")'"),
+("Wine Shades",   EXEC, "wdwrite WindowMaker WorkspaceBack '(vgradient, \\\"#600040\\\", \\\"#180010\\\")'")
+),
+("Images", OPEN_MENU, "-noext /usr/share/WindowMaker/Backgrounds $HOME/GNUstep/Library/WindowMaker/Backgrounds WITH wmsetbg -u -t")
+),   
+("Save Theme", SHEXEC, "getstyle -t $HOME/GNUstep/Library/WindowMaker/Themes/\\\"%a(Theme name)\\\""),
+("Save IconSet", SHEXEC, "geticonset $HOME/GNUstep/Library/WindowMaker/IconSets/\\\"%a(IconSet name)\\\""),
+("Preferences Utility", EXEC, "/usr/local/GNUstep/Applications/WPrefs.app/WPrefs")
+), 
+("Session",
+("Save Session", SAVE_SESSION),
+("Clear Session", CLEAR_SESSION),
+("Restart Window Maker", RESTART),
+("Exit", EXIT)
+)
+)
+EOF
+}
+
+function insert_submenu_begin() {
+  echo "(\"$1\"," >> $WMAKERMENU
+}
+
+function insert_submenu_end {
+  echo ")," >> $WMAKERMENU
+}
+
+function insert_entry() {
+    menuline=$1
+    APP=`echo $menuline|cut -f1 -d":" `
+    EXEC=`echo $menuline|cut -f4 -d":" `
+    TERM=`echo $menuline|cut -f5 -d":" `
+    if [[ $TERM == true ]] ; then
+      echo "(\"$APP\", EXEC, \"xterm -e $EXEC\")," >> $WMAKERMENU
+    else
+      echo "(\"$APP\", EXEC, \"$EXEC\")," >> $WMAKERMENU
+    fi
+}
+
+function build_menu {
+  cat $SORTED_INVENTORY | while read line ; do
+    case $line in
+        START_SUB*) insert_submenu_begin `echo $line|cut -f2 -d" " ` ;;
+	END_SUB) insert_submenu_end `echo $line|cut -f2 -d" " ` ;;
+        *) insert_entry "$line" ;;
+    esac
+  done
+}
+
+function clean_menu {
+# wmaker insists removing the "," behind the last entry in a menu
+# this is an ugly hack to take care of that
+
+local prevline
+local line
+local newline
+
+cat $WMAKERMENU | while read line ; do
+  if [ -z "$prevline" ] ;then
+    prevline="${line}" ;
+  elif [ "${line}" == ")," ]; then
+    newline="$(echo "${prevline%,}")"
+    echo "${newline}" >> $WMAKERMENU.new ;
+  else
+    echo "${prevline}" >>$WMAKERMENU.new ;
+  fi
+  prevline="${line}"
+  newline=
+done
+echo ")" >> $WMAKERMENU.new
+mv $WMAKERMENU.new $WMAKERMENU
+}
+
+# building the menu
+prepare_menu_location &&
+start_wmakermenu &&
+build_menu &&
+close_wmakermenu &&
+clean_menu ||
+echo "Generating of the windowmaker menu has failed!"

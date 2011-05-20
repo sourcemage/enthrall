@@ -1,0 +1,152 @@
+#!/bin/sh
+
+function prepare_menu_location {
+# moving the old menu out of the way
+
+  if [ "$OWN_MENU" == "true" ]; then
+    AFTERSTEPMENU="$AFTERSTEP_USER_MENU"
+  else
+    AFTERSTEPMENU="$AFTERSTEP_MENU"
+  fi
+
+  [ -d "$AFTERSTEPMENU" ] &&
+  mv $AFTERSTEPMENU $AFTERSTEPMENU.$(date +%Y%m%d%H%M%S)
+
+  mkdir $AFTERSTEPMENU &&
+  cd $AFTERSTEPMENU
+}
+
+function close_afterstep_menu {
+# closing the afterstep menu
+  SUB_COUNT="$(find . -type d -name "??_*"|sort|tail -n1|cut -f2 -d/ |cut -f1 -d_ )"
+  let SUB_COUNT=SUB_COUNT+1          &&
+  echo "Nop \"\"" > ${SUB_COUNT}_nop &&
+  let SUB_COUNT=SUB_COUNT+1          &&
+  mkdir ${SUB_COUNT}_Afterstep       &&
+  cd ${SUB_COUNT}_Afterstep          &&
+  cat << EOF >> 0_Whats_New
+Exec "Whats new in version 2.0?" exec konqueror http://afterstep.sf.net/index.php &
+Exec "Whats new in version 2.0?" exec firefox http://afterstep.sf.net/index.php &
+Exec "Whats new in version 2.0?" exec mozilla http://afterstep.sf.net/index.php &
+Exec "Whats new in version 2.0?" exec dillo http://afterstep.sf.net/index.php &
+Exec "Whats new in version 2.0?" exec opera http://afterstep.sf.net/index.php &
+Exec "Whats new in version 2.0?" exec xterm -e lynx http://afterstep.sf.net/index.php &
+Exec "Whats new in version 2.0?" exec xterm -e links http://afterstep.sf.net/index.php &
+EOF
+  cat << EOF >> 1_libAfterImage
+Exec "libAfterImage" exec konqueror http://afterstep.sf.net/afterimage/ &
+Exec "libAfterImage" exec firefox http://afterstep.sf.net/afterimage/ &
+Exec "libAfterImage" exec mozilla http://afterstep.sf.net/afterimage/ &
+Exec "libAfterImage" exec dillo http://afterstep.sf.net/afterimage/ &
+Exec "libAfterImage" exec opera http://afterstep.sf.net/afterimage/ &
+Exec "libAfterImage" exec xterm -e lynx http://afterstep.sf.net/afterimage/ &
+Exec "libAfterImage" exec xterm -e links http://afterstep.sf.net/afterimage/ &
+EOF
+  cat << EOF >> 2_International_Text
+Exec "International text support" exec  firefox http://afterstep.sf.net/afterimage/
+Exec "International text support" exec  mozilla http://afterstep.sf.net/afterimage/
+Exec "International text support" exec  konqueror http://afterstep.sf.net/afterimage/
+Exec "International text support" exec  opera http://afterstep.sf.net/afterimage/
+Exec "International text support" exec  dillo http://afterstep.sf.net/afterimage/
+Exec "International text support" exec  xterm -e links http://afterstep.sf.net/afterimage/
+Exec "International text support" exec  xterm -e lynx http://afterstep.sf.net/afterimage/
+EOF
+  cat << EOF >> 3_XML_images
+Exec "XML images" exec firefox http://afterstep.sf.net/asxmlimages.php &
+Exec "XML images" exec mozilla http://afterstep.sf.net/asxmlimages.php &
+Exec "XML images" exec konqueror http://afterstep.sf.net/asxmlimages.php &
+Exec "XML images" exec dillo http://afterstep.sf.net/asxmlimages.php &
+Exec "XML images" exec opera http://afterstep.sf.net/asxmlimages.php &
+Exec "XML images" exec xterm -e links http://afterstep.sf.net/asxmlimages.php &
+Exec "XML images" exec xterm -e lynx http://afterstep.sf.net/asxmlimages.php &
+EOF
+  cat << EOF >> 4_Color_Schemes
+Exec "Color Schemes" exec firefox http://afterstep.sf.net/afterstep20beta/ &
+Exec "Color Schemes" exec konqueror http://afterstep.sf.net/afterstep20beta/ &
+Exec "Color Schemes" exec mozilla http://afterstep.sf.net/afterstep20beta/ &
+Exec "Color Schemes" exec dillo http://afterstep.sf.net/afterstep20beta/ &
+Exec "Color Schemes" exec opera http://afterstep.sf.net/afterstep20beta/ &
+Exec "Color Schemes" exec xterm -e lynx http://afterstep.sf.net/afterstep20beta/ &
+Exec "Color Schemes" exec xterm -e links http://afterstep.sf.net/afterstep20beta/ &
+EOF
+  cat << EOF >> 5_Supported_Standards
+Exec "Supported standards" exec firefox http://www.freedesktop.org/standards/wm-spec/ &
+Exec "Supported standards" exec konqueror http://www.freedesktop.org/standards/wm-spec/ &
+Exec "Supported standards" exec mozilla http://www.freedesktop.org/standards/wm-spec/ &
+Exec "Supported standards" exec dillo http://www.freedesktop.org/standards/wm-spec/ &
+Exec "Supported standards" exec opera http://www.freedesktop.org/standards/wm-spec/ &
+Exec "Supported standards" exec xterm -e lynx http://www.freedesktop.org/standards/wm-spec/ &
+Exec "Supported standards" exec xterm -e links http://www.freedesktop.org/standards/wm-spec/ &
+EOF
+  cat << EOF >> 6_afterstepdoc
+Exec "AfterStep documentation" exec afterstepdoc &
+MiniPixmap "mini-as.xpm"
+EOF
+  echo "Nop \"\"" > 7_nop &&
+  mkdir 8_Quit            &&
+  cd 8_Quit               &&
+  cat << EOF >> 0_close
+Quit "Close this session"
+MiniPixmap "mini-exit.xpm"
+EOF
+  cat << EOF >> 1_exit
+Nop "Exit ?" Form QuitForm
+MiniPixmap "mini-exit.xpm"
+EOF
+  cat << EOF >> 2_restartsession
+Restart "Restart this session" afterstep -r
+EOF
+   cd ../..
+}
+
+function insert_submenu_begin() {
+  mkdir ${SUB_COUNT}_${1} &&
+  cd ${SUB_COUNT}_${1}
+}
+
+function insert_submenu_end {
+  cd ..
+}
+
+function insert_entry() {
+    menuline=$1
+    APP=`echo $menuline|cut -f1 -d":" `
+    EXEC=`echo $menuline|cut -f4 -d":" `
+    local exec_command="$(echo $EXEC|cut -f1 -d" ")"
+    if (echo exec_command |grep -v -q / ); then
+      local which_exec="$(which $exec_command)"
+      EXEC="$(echo $EXEC|sed "s#$exec_command#$which_exec#" )"
+    fi
+    TERM=`echo $menuline|cut -f5 -d":" `
+    NAME=$(echo $APP|sed 's/ //g')
+    if [[ $TERM == true ]] ; then
+      cat << EOF >> ${item_count}_${NAME}
+        Exec "$APP" exec xterm -e ${EXEC} &
+EOF
+    else
+      cat << EOF >> ${item_count}_${NAME}
+        Exec "$APP" exec ${EXEC} &
+EOF
+    fi
+}
+
+function build_menu {
+  local item_count=0
+  cat $SORTED_INVENTORY | while read line ; do
+    case $line in
+        START_SUB*) insert_submenu_begin $(echo $line|cut -f2 -d" " )
+		    item_count=0
+		    let SUB_COUNT=SUB_COUNT+1 ;;
+        END_SUB) insert_submenu_end ;;
+        *) insert_entry "$line"
+           let item_count=item_count+1 ;;
+    esac
+  done
+}
+
+# building the menu
+SUB_COUNT="0"
+prepare_menu_location &&
+build_menu &&
+close_afterstep_menu ||
+echo "Generating of the afterstep menu has failed"

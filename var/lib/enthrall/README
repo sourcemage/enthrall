@@ -1,0 +1,15 @@
+This directory contains the backends for enthrall.
+It will treat any file which starts with "enthrall." and ends
+in the spell-name of the windowmanager/menu-tool as a
+backend.
+
+Take a look at the available backends to see how to build your own.
+
+NOTE: windowmaker has 2 menu formats, the old menu and the new "plmenu"
+      the default is to use the plmenu format, which is what enthrall will use.
+      if you want to use the "old" format, you'll need to swap enthrall.windowmaker
+      with wmaker.menu (remember to back enthrall.windowmaker).
+      Before you ask, NO, I will not change enthrall to be able to build both as
+      that would require too much of a rewrite. Maybe, just maybe, i'll think
+      of something when all the other backends are done. Don't hold your breath...
+

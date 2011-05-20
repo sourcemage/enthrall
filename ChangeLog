@@ -1,0 +1,66 @@
+2009-08-14 Arjan Bouter <abouter@sourcemage.org>
+	* version 0.8
+	* added lxde and dmenu, fixed deskmenu system
+	  menu location, removed netconf menuentry
+
+2008-02-28 Arjan Bouter <abouter@sourcemage.org>
+	* version 0.7
+	* added several windowmanagers
+	* fixed xfce
+	* added a manpage
+
+2007-08-25 Arjan Bouter <abouter@sourcemage.org>
+	* added a jwm backend
+	* version 0.6
+
+2007-06-24 Arjan Bouter <abouter@sourcemage.org>
+	* fixed removing of backup menu directories
+	* version 0.5
+
+2007-05-15 Arjan Bouter <abouter@sourcemage.org>
+	* renamed ion -> ion3
+	* added a dir for desktop files
+	* fixed waimea backend
+	* version 0.4
+
+2007-01-01 Arjan Bouter <abouter@sourcemage.org>
+	* added fvwm and fvwm-crystal backends
+	* fixed openbox user menu
+
+2005-04-10 Arjan Bouter <abouter@sourcemage.org>
+	* Fixed ion's backend
+	* version increased to 0.3.1
+
+2005-04-01 Arjan Bouter <abouter@sourcemage.org>
+	* Fixed xfce4-session's 'quit' menu entry
+	* added afterstep backend
+	* moved enthrall.conf from /etc/sorcery to /etc
+	  to keep out of sorcery's way
+
+2005-03-30 Arjan Bouter <abouter@sourcemage.org>
+	* added xfce4-session backend
+	* added all available backends to the
+          output of --help
+	* version updated to 0.2
+
+2005-03-19 Arjan Bouter <abouter@sourcemage.org>
+	* small fix in icewm's backend
+
+2005-03-18 Arjan Bouter <abouter@sourcemage.org>
+	* added --remove to enthrall
+
+2005-03-18 Arjan Bouter <abouter@sourcemage.org>
+	* added icewm backend
+	* added version number and --version option
+
+2005-03-03 Arjan Bouter <abouter@sourcemage.org>
+	* fixed typos in --help
+
+2005-02-13 Arjan Bouter <abouter@sourcemage.org>
+	* fixed ion's backend
+
+2005-02-12 Arjan Bouter <abouter@sourcemage.org>
+	* enthrall.conf: fixed location of the backends
+
+2005-02-11 Arjan Bouter <abouter@sourcemage.org>
+	* moved Enthrall into this p4 section

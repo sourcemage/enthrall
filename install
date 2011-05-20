@@ -1,0 +1,62 @@
+#!/bin/bash
+
+#
+# For unknown reasons `$filter=...; find . $filter` doesn't work, so this function
+# encapsulates the filters necessary to strip CVS files and EMACS temporary files
+function install__find_non_volatile() {
+  find "$@" -not -type d -and -not -path '*CVS*' -and -not -name '.#*' -and -not -name '*~' -and -not -path '*.svn*' -and -not -path '*.arch-id*'
+}
+
+if [[ $1 ]] ; then
+  INSTALL_ROOT=$1
+else
+  INSTALL_ROOT=""
+fi
+# First clean out all libraries.
+echo "Cleaning out all old enthrall libraries..."
+ENTHRALL_LIBS=${INSTALL_ROOT}/var/lib/enthrall
+rm -rf $ENTHRALL_LIBS
+
+echo "Installing scripts and libraries"
+# Install the executables
+install__find_non_volatile etc usr/bin var/lib | (
+  while read SCRIPT; do
+    /usr/bin/install --owner=root --group=root --mode=755 -pD "${SCRIPT}" "${INSTALL_ROOT}/${SCRIPT}"
+  done
+)
+
+# Install the man pages
+echo "Installing man pages"
+install__find_non_volatile usr/share/man | (
+  while read DOC; do
+    /usr/bin/install --owner=root --group=root --mode=644 -pD "${DOC}"    "${INSTALL_ROOT}/${DOC}"
+    gzip  --best  -f "${INSTALL_ROOT}/${DOC}"
+  done
+)
+
+# Install the GNU General Public License
+  /usr/bin/install --owner=root --group=root --mode=644 -pD "COPYING"   "${INSTALL_ROOT}/usr/share/doc/enthrall/COPYING"
+
+# Install the ChangeLog
+  /usr/bin/install --owner=root --group=root --mode=644 -pD "ChangeLog"   "${INSTALL_ROOT}/usr/share/doc/enthrall/ChangeLog"
+
+#---------------------------------------------------------------------
+##=back
+##
+##=head1 LICENSE
+##
+## This software is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation; either version 2 of the License, or
+## (at your option) any later version.
+##
+## This software is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this software; if not, write to the Free Software
+## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+##
+#---------------------------------------------------------------------

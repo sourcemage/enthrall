@@ -1,0 +1,101 @@
+#!/bin/sh
+
+function prepare_menu_location {
+# moving the old menu out of the way
+
+  if [ "$OWN_MENU" == "true" ]; then
+    [ -e "$XFCE_USER_MENU" ] &&
+    mv $XFCE_USER_MENU $XFCE_USER_MENU.$(date +%Y%m%d%H%M%S)
+    XFCEMENU="$XFCE_USER_MENU"
+  else
+    [ -e "$XFCE_MENU" ] &&
+    mv $XFCE_MENU $XFCE_MENU.$(date +%Y%m%d%H%M%S)
+    XFCEMENU="$XFCE_MENU"
+  fi
+
+  local menuname=`basename "$XFCEMENU"`
+  local menudir=`echo "$XFCEMENU"|sed "s/\/$menuname//"`
+  [ -d "$menudir" ] || mkdir -p "$menudir"
+}
+
+function start_xfce_menu {
+# the start of the xfce menu
+cat >> $XFCEMENU << EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE xfdesktop-menu>
+  
+<xfdesktop-menu>
+
+        <title name="Desktop Menu" icon="xfce4-backdrop"/>
+
+        <separator/>
+
+        <app name="Run Program..." cmd="xfrun4" icon="gnome-fs-executable"/>
+
+        <separator/>
+
+        <app name="Terminal" cmd="xfterm4" icon="gnome-terminal"/>
+        <app name="File Manager (xffm)" cmd="xffm" icon="file-manager"/>
+
+        <separator/>
+
+EOF
+}
+
+function close_xfce_menu {
+# closing the xfce menu
+cat >> $XFCEMENU << EOF
+
+        <separator/>
+
+        <menu name="XFCE" icon="xfce_xicon1">
+            <menu name="Settings" icon="gnome-settings">
+                <app name="Settings Manager" cmd="xfce-setting-show" icon="gnome-settings"/>
+            </menu>
+            <app name="Help" cmd="xfhelp4" icon="gnome-help"/>
+            <app name="About Xfce" cmd="xfce4-about" icon="gnome-info"/>
+            <separator/>
+            <app name="Quit" cmd="xfce4-session-logout" icon="gnome-logout"/>
+         </menu>
+</xfdesktop-menu>
+EOF
+}
+
+function insert_submenu_begin() {
+        echo "        <menu name=\"$1\">" >> $XFCEMENU
+}
+
+function insert_submenu_end {
+        echo "        </menu>" >>$XFCEMENU
+}
+
+function insert_entry() {
+    menuline=$1
+    APP=`echo $menuline|cut -f1 -d":" `
+    EXEC=`echo $menuline|cut -f4 -d":" `
+    TERM=`echo $menuline|cut -f5 -d":" `
+    ICON=`echo $menuline|cut -f6 -d":" `
+    [ -z ${ICON} ] && ICON="xfce-unknown"
+    if [[ $TERM == true ]] ; then
+      echo "                <app name=\"$APP\" term=\"true\" cmd=\"$EXEC\" icon=\"$ICON\"/>" >> $XFCEMENU
+    else
+      echo "                <app name=\"$APP\" cmd=\"$EXEC\" icon=\"$ICON\"/>" >> $XFCEMENU
+    fi
+}
+
+function build_menu {
+  cat $SORTED_INVENTORY | while read line ; do
+    case $line in
+        START_SUB*) insert_submenu_begin `echo $line|cut -f2 -d" " ` ;;
+	END_SUB) insert_submenu_end ;;
+        *) insert_entry "$line" ;;
+    esac
+  done
+}
+
+# building the menu
+prepare_menu_location &&
+start_xfce_menu &&
+build_menu &&
+close_xfce_menu ||
+echo "Generating of the xfce menu has failed!"

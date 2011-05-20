@@ -1,0 +1,78 @@
+#!/bin/sh
+
+function prepare_menu_location {
+# moving the old menu out of the way
+
+  if [ "$OWN_MENU" == "true" ]; then
+    [ -e "$IDESK_USER_MENU" ] &&
+    mv $IDESK_USER_MENU $IDESK_USER_MENU.$(date +%Y%m%d%H%M%S)
+    [ -d "${IDESK_USER_MENU}" ] || mkdir -p "${IDESK_USER_MENU}"
+    IDESKMENU="$IDESK_USER_MENU"
+  else
+    [ -e "$IDESK_MENU" ] &&
+    mv $IDESK_MENU $IDESK_MENU.$(date +%Y%m%d%H%M%S)
+  fi
+}
+
+function insert_entry() {
+    menuline=$1
+    APP=`echo $menuline|cut -f1 -d":" `
+    EXEC=`echo $menuline|cut -f4 -d":" `
+    ICON=`echo $menuline|cut -f6 -d":" `
+    if [ -z ${ICON} ]; then
+      ICON="rxvt.png"
+    fi
+    TERM=`echo $menuline|cut -f5 -d":" `
+    if [[ $TERM == true ]] ; then
+      cat >> ${IDESKMENU}/${APP}.lnk << EOF
+table Icon
+  Caption: $APP
+  Command: xterm -c \"$EXEC\"
+  Icon: $ICON
+  Width: 48
+  Heigth: 48
+  X: 30
+  Y: 30
+end
+EOF
+    else cat >> ${IDESKMENU}/${APP}.lnk << EOF
+table Icon
+  Caption: $APP
+  Command: \"$EXEC\"
+  Icon: $ICON
+  Width: 48
+  Heigth: 48
+  X: 30
+  Y: 30
+end
+EOF
+    fi
+}
+
+function build_menu {
+if [ "$OWN_MENU" == "true" ]; then
+    case $line in
+        START_SUB*) true ;;
+        END_SUB) true ;;
+        *) insert_entry "$line" ;;
+    esac
+else
+cat >> $IDESK_MENU << EOF
+table Icon
+  Caption: Idesk
+  Command: /usr/bin/Xdialog --msgbox "IDESK -- run Enthrall as a regular user to generate icons" 15 30 
+  Icon: /usr/share/idesk/folder_home.xpm
+  Width: 48
+  Height: 48
+  X: 30
+  Y: 30
+end
+EOF
+    return 0
+fi
+}
+
+# building the menu
+prepare_menu_location &&
+build_menu ||
+echo "Generating of the idesk menu has failed!"

@@ -1,0 +1,72 @@
+#!/bin/sh
+
+function prepare_menu_location {
+
+# moving the old menu out of the way
+
+  if [ "$OWN_MENU" == "true" ]; then
+    FVWMCRYSTALMENU="$FVWM_CRYSTAL_USER_MENU"
+  else
+    FVWMCRYSTALMENU="$FVWM_CRYSTAL_MENU"
+  fi
+
+  [ -d "$FVWMCRYSTALMENU" ] &&
+  mv $FVWMCRYSTALMENU $FVWMCRYSTALMENU.$(date +%Y%m%d%H%M%S)
+
+  mkdir -p $FVWMCRYSTALMENU &&
+  cd $FVWMCRYSTALMENU
+}
+
+function close_fvwmcrystal_menu {
+# closing the fvwmcrystal menu
+true
+}
+
+function insert_submenu_begin() {
+  mkdir ${1} &&
+  cd ${1}
+}
+
+function insert_submenu_end {
+  cd ..
+}
+
+function insert_entry() {
+    menuline=$1
+    APP=`echo $menuline|cut -f1 -d":" `
+    EXEC=`echo $menuline|cut -f4 -d":" `
+    local exec_command="$(echo $EXEC|cut -f1 -d" ")"
+    if (echo exec_command |grep -v -q / ); then
+      local which_exec="$(which $exec_command)"
+      EXEC="$(echo $EXEC|sed "s#$exec_command#$which_exec#" )"
+    fi
+    TERM=`echo $menuline|cut -f5 -d":" `
+    NAME=$(echo $APP|sed 's/ //g')
+    if [[ $TERM == true ]] ; then
+      cat << EOF > ${NAME}
+#!/bin/sh
+exec xterm -e ${EXEC} \$@
+EOF
+    else
+      cat << EOF > ${NAME}
+#!/bin/sh
+exec ${EXEC} \$@
+EOF
+    fi
+}
+
+function build_menu {
+  cat $SORTED_INVENTORY | while read line ; do
+    case $line in
+        START_SUB*) insert_submenu_begin $(echo $line|cut -f2 -d" " );;
+        END_SUB) insert_submenu_end ;;
+        *) insert_entry "$line"
+    esac
+  done
+}
+
+# building the menu
+prepare_menu_location &&
+build_menu &&
+close_fvwmcrystal_menu ||
+echo "Generating of the fvwm-crystal menu has failed"

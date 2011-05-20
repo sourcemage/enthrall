@@ -1,0 +1,32 @@
+.TH ENTHRALL "8" "Februari 2008" "Source Mage GNU Linux" "System Administration"
+.SH NAME
+enthrall \- menu generating utility
+.SH "DESCRIPTION"
+.I enthrall
+is an easy to use application for generating a menu for various windowmanagers that do not support the freedesktop.org standards.
+.PP
+.SH SYNOPSIS
+.I enthrall [windowmanager]
+.SH EXAMPLE
+.SS Generate all menus
+To generate a menu for all installed and supported windowmanagers, type
+.I enthrall
+.SS Generate one menu
+To generate a menu for a single windowmanager, type
+.I enthrall windowmanager
+where "windowmanager" is the name of the windowmanager. So it's
+.I enthrall blackbox
+to generate a blackbox menu. It is possible to specify more than one windowmanager name at once.
+.PP
+.SH Supported windowmanagers
+Currently enthrall supports the following windowmanagers, panels and popup-menu applications:
+aewm, afterstep, blackbox, deskmenu, enlightenment, fbpanel, fluxbox, fvwm, fvwm-crystal, golem, icewm, idesk, ion3, jwm, kahakai, lxp-icewm, openbox, pekwm, pwm, qvwm, waimea, windowmaker, xfce4-session
+.PP
+.SH "AUTHOR"
+Original version by Arjan Bouter
+.PP
+Maintained by the Source Mage GNU Linux Team (http://www.sourcemage.org)
+.SH "REPORTING BUGS"
+Report bugs to bugzilla <http://bugs.sourcemage.org>
+.SH "WARRANTY"
+This is free software with ABSOLUTELY NO WARRANTY

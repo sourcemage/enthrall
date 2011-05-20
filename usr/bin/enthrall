@@ -1,0 +1,409 @@
+#!/bin/bash
+#---------------------------------------------------------------------
+## This software is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation; either version 2 of the License, or
+## (at your option) any later version.
+##
+## This software is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this software; if not, write to the Free Software
+## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+##
+## @Copyright Copyright 2004 by Arjan Bouter for Source Mage GNU/Linux
+## @Licence Relased under the GNU GPL version 2
+#---------------------------------------------------------------------
+
+
+function help_me {
+  cat << EOF
+
+Enthrall is a script that will generate menus for various windowmanagers.
+By default it will generate menus for all windowmanagers wich have
+a backend written for them. You can optionally give a few windowmanagers
+as options to enthrall and it will only build their respective menu.
+
+The default location to place the generated menus is in the location
+where the windowmanagers expect them. You can either change the location
+in /etc/enthrall.conf or move/link the menus to their place
+in your homedir.
+
+If your favorite windowmanager is not supported,
+please write the backend for it yourself. It really isn't hard.
+You can try asking REALLY nice in #sourcemage on irc.freenode.net
+and we might want to help you out...
+
+Usage:
+enthrall [options]
+
+Options available:
+    version   : Displays version number and exits
+    help      : Displays this text.
+    inventory : only generates menu index and does not generate any menu.
+                his might then be used in your own, far more advanced,
+		menu generating script.  ;)
+    remove    : removes the backups of all menus
+    <windowmanager name>  : generates only the menu for <windowmanager name>
+
+The windowmanagers supported:
+aewm, afterstep, blackbox, deskmenu, fluxbox, fvwm, fvwm-crystal, golem, icewm, ion3, kahakai, openbox, pekwm, pwm, qvwm, waimea, windowmaker (both menu formats) and xfce-session.
+
+EOF
+  exit 0
+}
+
+function check_own_menu {
+# check if root is running enthrall
+# if so, do we make root's menu or local menus
+ OWN_MENU=true
+ if [ "$UID" == "0" ]; then
+   echo "I noticed you ran me as root. Well master, do you want to work"
+   echo "on your own menus or those for everyone?"
+   while :; do
+     echo -n "please answer y for your own menus or n for everyone:    "
+     read answer
+     case "$answer" in
+       Y|y) OWN_MENU=true
+            export OWN_MENU
+            break ;;
+       N|n) OWN_MENU=false
+            export OWN_MENU
+            break ;;
+     esac
+   done
+ fi
+ echo ""
+}
+
+function get_dt_dirs {
+# gets the list of available locations for .desktop files
+  local dt_location=""
+  for dt_location in $DT_DIRS ; do
+    [ -d $dt_location ] && DT_LOCATIONS="$DT_LOCATIONS $dt_location"
+  done
+  # return 0, just in case the last dir in DT_DIRS doesn't exist
+  return 0
+}
+
+
+function get_dt_files {
+# gets the list of available .desktop files
+
+ DT_FILE_LIST=$(find $DT_LOCATIONS -name '*.desktop')
+
+}
+
+
+function read_dt_files {
+# reads the list of .desktop files and drops the summary in an inventory
+# some wm's, like qvwm need the full path to icons
+# that is a task for the backend, NOT enthrall...
+
+local dt_file=""
+  not_in_menu="true"
+  for dt_file in $DT_FILE_LIST ; do
+    echo -n "."
+    PARSED="$( awk -F= '
+      $1=="Name" {
+                  gsub("^\"", "", $2);
+                  gsub("\"$", "", $2);
+		  APP=$2;
+                 }
+      $1=="Comment" {
+                  gsub(":", "-", $2);
+		  DESC=$2;
+                 }
+      $1=="Categories" {
+                  gsub(";$", "", $2);
+                  LOC=$2;
+                 }
+      $1=="Icon" {
+                  ICON=$2;
+                 }
+      $1=="TryExec" {
+         if($2~/^\"(.*)\"$/) {
+                  gsub("^\"", "", $2);
+		  gsub("\"$", "", $2); }
+                  TryExec=$2;
+                 } 
+      $1=="Exec" {
+         if($2~/^\"(.*)\"$/) {
+                  gsub("^\"", "", $2);
+                  gsub("\"$", "", $2); }
+                  Exec=$2;
+                 } 
+      $1=="Terminal" {
+                  TERM=$2;
+                 }
+      $1=="OnlyShowIn" {
+                  OnlyShowIn=$2;
+                 }
+      $1=="NoDisplay" {
+                  NoDisplay=$2;
+                 }
+
+      END {
+           if(TryExec!="") EXEC=TryExec; else EXEC=Exec;
+           if(DESC=="") DESC=APP;
+           if(LOC=="") LOC="Application;Unspecified";
+           if(LOC=="Application") LOC="Application;Unspecified";
+           if(TryExec!="") EXEC=TryExec; else EXEC=Exec;
+	   printf("%s:%s:%s:%s:%s:%s:%s:%s",APP,DESC,LOC,ICON,EXEC,TERM,OnlyShowIn,NoDisplay);
+          } ' $dt_file
+      )"
+
+    APP="$(echo $PARSED|awk -F: '{print $1}')"
+    DESC="$(echo $PARSED|awk -F: '{print $2}')"
+    LOC="$(echo $PARSED|awk -F: '{print $3}')"
+    ICON="$(echo $PARSED|awk -F: '{print $4}')"
+    EXEC="$(echo $PARSED|awk -F: '{print $5}')"
+    TERM="$(echo $PARSED|awk -F: '{print $6}')"
+    OnlyShowIn="$(echo $PARSED|awk -F: '{print $7}')"
+    NoDisplay="$(echo $PARSED|awk -F: '{print $8}')"
+
+    [ "$TERM" == "1" ] && TERM="true"
+    [ "$TERM" == "True" ] && TERM="true"
+
+    [ "$NoDisplay" == "1" ] && NoDisplay="true"
+    [ "$NoDisplay" == "True" ] && NoDisplay="true"
+
+# variables are now filled with values, but we only want menu entries if the
+# executable really exists
+
+    local test_exec="$( echo "$EXEC" |cut -f1 -d" " )"
+    local path_env="$( echo $PATH | sed "s/:/ /g" )"
+
+    [ -x "$test_exec" ] && not_in_menu=""
+
+    [ -z "$not_in_menu" ] || for path_dir in $path_env; do
+        [ -x "$path_dir/$test_exec" ] && not_in_menu=""
+      done
+    ! [ -z "$APP" ] && [ "$NoDisplay" != "true" ] && [ -z "$not_in_menu" ] && [ -z "$OnlyShowIn" ] && INVENTORY="$(echo "$INVENTORY" ; echo "$APP:$DESC:$LOC:$EXEC:$TERM:$ICON")"
+
+  not_in_menu="true"
+
+  done
+  echo ""
+   INVENTORY="$(echo "$INVENTORY"|sort -u)"
+}
+
+
+function gen_inventory {
+# generates inventory of installed spells which have menu entries
+  echo "Generating inventory, please be patient."
+  get_dt_dirs || echo "Oops, couldn't find any directory with *.desktop files"
+  get_dt_files || echo "Oops, couldn't find any *.desktop file in specified directories"
+  read_dt_files || echo "Oops, couldn't read the found *.desktop files"
+}
+
+
+function scan_backends {
+# scans for available enthrall backends
+# and checks if the windowmanager in question is installed
+  local backend_found=""
+  local check_wm=""
+  echo "Checking installed windowmanagers"
+  [ -z "$ARGS" ] && for backend_found in $LIBENTHRALL/* ; do
+       check_wm="$(echo $backend_found|grep "enthrall\."|cut -f2 -d. )"
+       [ "$(gaze installed $check_wm | tail -n1)" != "not installed" ] &&
+       echo -n "." &&
+       BACKENDS_AVAILABLE="$BACKENDS_AVAILABLE $check_wm"
+     done
+  ! [ -z "$ARGS" ] && for check_wm in $ARGS ; do
+       [ "$(gaze installed $check_wm | tail -n1)" != "not installed" ] &&
+       echo -n "." &&
+       BACKENDS_AVAILABLE="$BACKENDS_AVAILABLE $check_wm"
+     done
+  [ -z "$BACKENDS_AVAILABLE" ] && {
+    echo "None of the selected windowmanagers are installed, going any further would be useless."
+    return 1
+    }
+  echo
+  echo "Going to build a menu for: $BACKENDS_AVAILABLE"
+  return 0
+}
+
+function scan_for_submenus {
+# scans the inventory for submenus
+# returns a list of submenus
+  echo "$INVENTORY"|cut -f3 -d: |while read item ; do
+    if ! [ -z "$item" ] ; then
+      echo $item | sed "s/\;$//g"
+    fi
+  done
+}
+
+
+function filter_nonsense {
+# filters out stupid menu categories
+# no harm in filtering, even gnome and enlightenment do it
+local sublist=$(scan_for_submenus \
+  |sed -e "s/GNOME\;//g" -e "s/\;X-Ximian-Main//g" \
+       -e "s/X-Ximian-Main\;//g" -e "s/\;X-Red-Hat-Base//g" )
+
+  echo "$sublist"|sort -r -u
+}
+
+function clean_semicolon() {
+# cleans out the semicolons from the input, one line at the time
+  rawline="$*"
+  cleanline=${rawline/\;/\\}
+}
+
+
+function order_inventory {
+# Voodoo time, this takes the inventory and
+# produces a sorted inventory, ready for the backends.
+#
+# Note:	replace "filter_nonsense" by "scan_for_submenus" to keep 
+#       the submenus in the list exactly as specified in the 
+#       .desktop files (including GNOME and RED-HAT-BASE submenus).
+#
+
+# Remember, the "Other" can not be in the list. it is filled with
+# entries which do not fit in other lists.
+  if [ -z "$SUBMENUS" ] ; then
+    SUBMENUS="Audio Editor File Game Graphic Network Office Video"
+  fi
+
+  DONE=""
+
+  echo "Sorting inventory, this can take a while"
+
+  for submenu in $SUBMENUS ; do
+    items="$(echo "$INVENTORY"|grep -i $submenu)"
+    if ! [ -z "$items" ]; then
+      echo "START_SUB $submenu" >> $SORTED_INVENTORY
+      echo "$items" | while read menu_item; do
+      isdone="$(echo "$DONE"|grep -x "$menu_item")"
+        if ! [ "$isdone" ]; then
+          echo "$menu_item" >> $SORTED_INVENTORY
+        fi
+      done
+      echo "END_SUB" >> $SORTED_INVENTORY
+    fi
+    DONE="$(echo "$DONE" ; echo "$items")"
+  done
+
+# We need to add the sourcemage tools to the menu as they also don't provide
+# their own .desktop files. Hmm, should I file a bug for this? ;)
+  echo "START_SUB Sourcemage" >> $SORTED_INVENTORY
+    echo "Enthrall:Generate menu:Application;SourceMage:enthrall:true:" >> $SORTED_INVENTORY
+    echo "XSorcery:Sourcemage settings:Application;SourceMage:xsorcery:true:" >> $SORTED_INVENTORY
+  echo "END_SUB" >> $SORTED_INVENTORY
+
+
+  echo "START_SUB Other" >> $SORTED_INVENTORY
+    echo "$INVENTORY" | while read line; do
+      isdone="$(echo "$DONE"|grep -x "$line")"
+      ! [ "$isdone" ] && ! [ -z "$line" ] && echo "$line" >> $SORTED_INVENTORY
+      isdone=""
+      DONE="$(echo "$DONE" ; echo "$line")"
+    done
+  echo "END_SUB" >> $SORTED_INVENTORY
+}
+
+
+function gen_all_backends() {
+# Simply calls the backends for each selected wm
+  for backend in $BACKENDS_AVAILABLE ; do
+    echo "Working on a $backend menu"
+    source $LIBENTHRALL/enthrall.$backend || echo "Failed generating $backend menu"
+  done
+}
+
+function gen_all() {
+# performs the requested operations and
+# check if the main functions did their work
+  check_own_menu &&
+  scan_backends &&
+  gen_inventory &&
+  order_inventory &&
+  gen_all_backends $BACKENDS_AVAILABLE ||
+  echo "Menu generating has failed! Sorry... Perhaps we can blame ib? ;)"
+}
+
+function remove_old_menus() {
+# this function removes all backups of the various menus
+
+ MENU_LIST="$(grep "_MENU" /etc/enthrall.conf |grep -v "^#" \
+            && [ -e /etc/enthrall.local.conf ] && \
+            grep "_MENU" /etc/enthrall.local.conf |grep -v "^#" )"
+
+ check_own_menu
+
+ if [ "$OWN_MENU" == true ]; then
+   echo "Removing your backup menus"
+   for menu in $(echo "$MENU_LIST" | grep USER ); do
+     local TARGET_MENU="$(echo "$menu" |cut -f2 -d= |sed -e 's/\"//g' -e "s#\$HOME#$HOME#" )"
+     local menuname=$(basename "$TARGET_MENU")
+     local basedir=$(echo "$TARGET_MENU"|sed "s/\/$menuname//")
+     local TARGET_MENU_DIR="${basedir}/enthrall"
+     echo -n "Removing $TARGET_MENU backups :	"
+     rm -rf `eval echo $TARGET_MENU`.2* && echo "done"
+     if [ -d "${TARGET_MENU_DIR}" ]; then
+      echo -n "Removing $TARGET_MENU_DIR directory backups :	"
+      rm -rf ${TARGET_MENU_DIR}.2* && echo "done"
+     fi
+   done;
+ else
+   echo "Removing global backup menus"
+   for menu in $(echo "$MENU_LIST" | grep -v USER ); do
+     local TARGET_MENU="$(echo "$menu=" |cut -f2 -d= |sed 's/\"//g' )"
+     local menuname=$(basename "$TARGET_MENU")
+     local basedir=$(echo "$TARGET_MENU"|sed "s/\/$menuname//")
+     local TARGET_MENU_DIR="$basedir/enthrall"
+     echo -n "Removing $TARGET_MENU backups :	"
+     rm -rf ${TARGET_MENU}.2* && echo "done"
+     if [ -d ${TARGET_MENU_DIR} ]; then
+      echo -n "Removing $TARGET_MENU_DIR directory backups :	"
+      rm -rf ${TARGET_MENU_DIR}.2* && echo "done"
+     fi
+   done;
+ fi
+} 
+
+# the main part
+# this is where we clean up leftovers from a previous run and
+# select functionality
+
+ARGS=$*
+
+# fetching the list of options enthrall will use
+if [ -e /etc/enthrall.conf ]; then
+  . /etc/enthrall.conf
+else
+  echo "Hey! enthrall.conf is missing!"
+  echo "Please install it"
+  exit 1
+fi
+if [ -e /etc/enthrall.local.conf ]; then
+  . /etc/enthrall.local.conf
+fi
+
+
+# clean up any leftovers from last enthrall
+# and prepare needed files & directories
+if [ -e $SORTED_INVENTORY ] ; then
+  rm -f $SORTED_INVENTORY
+fi
+
+case $1 in
+	--version|-v|version)
+                echo "Enthrall version 0.7" ;;
+	--help|-h|help)
+                help_me ;;
+	-inventory|-i|inventory)
+                echo "The inventory will be placed in /tmp/enthrall.inventory"
+	        gen_inventory
+                echo "$INVENTORY" > /tmp/enthrall.inventory ;;
+        -remove|-r|remove)
+                remove_old_menus ;;
+        *)
+		gen_all $ARGS
+		rm -f $SORTED_INVENTORY ;;
+esac

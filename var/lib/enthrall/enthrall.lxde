@@ -1,0 +1,96 @@
+#!/bin/sh
+
+function prepare_menu_location {
+# moving the old menu out of the way
+
+  if [ "$OWN_MENU" == "true" ]; then
+    [ -e "$LXDE_USER_MENU" ] &&
+    mv $LXDE_USER_MENU $LXDE_USER_MENU.$(date +%Y%m%d%H%M%S)
+    LXDEMENU="$LXDE_USER_MENU"
+  else
+    [ -e "$LXDE_MENU" ] &&
+    mv $LXDE_MENU $LXDE_MENU.$(date +%Y%m%d%H%M%S)
+    LXDEMENU="$LXDE_MENU"
+  fi
+
+  local menuname=`basename "$LXDEMENU"`
+  local menudir=`echo "$LXDEMENU"|sed "s/\/$menuname//"`
+  [ -d "$menudir" ] || mkdir -p "$menudir"
+}
+
+function start_lxde_menu {
+# the start of the lxde menu
+cat >> $LXDEMENU << EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<lxde_menu xmlns="http://lxde.org/"
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+xsi:schemaLocation="http://lxde.org/
+  file:///usr/share/lxde/menu.xsd">
+  
+<menu id="root-menu" label="Lxde">
+EOF
+}
+
+function close_lxde_menu {
+# closing the lxde menu
+cat >> $LXDEMENU << EOF
+    <separator />
+    <menu id="lxde-menu" label="Lxde">
+      <item label="ObConf">
+        <action name="Execute"><execute>obconf</execute></action>
+      </item>
+      <item label="Reconfigure">
+        <action name="Reconfigure" />
+      </item>
+      <separator />
+      <item label="Exit">
+        <action name="Exit" />
+      </item>
+    </menu>
+  </menu>
+  
+  </lxde_menu>
+  
+EOF
+}
+
+function insert_submenu_begin() {
+  echo "<menu id=\"$1\" label=\"$1\">" >> $LXDEMENU
+}
+
+function insert_submenu_end {
+  echo "</menu>" >>$LXDEMENU
+}
+
+function insert_entry() {
+    menuline=$1
+    APP=`echo $menuline|cut -f1 -d":" `
+    EXEC=`echo $menuline|cut -f4 -d":" `
+    TERM=`echo $menuline|cut -f5 -d":" `
+    if [[ $TERM == true ]] ; then
+      echo "  <item label=\"$APP\">" >>$LXDEMENU
+      echo "    <action name=\"Execute\"><execute>xterm -e $EXEC</execute></action>" >>$LXDEMENU
+      echo "  </item>" >>$LXDEMENU
+    else
+      echo "  <item label=\"$APP\">" >>$LXDEMENU
+      echo "    <action name=\"Execute\"><execute>$EXEC</execute></action>" >>$LXDEMENU
+      echo "  </item>" >>$LXDEMENU
+    fi
+}
+
+function build_menu {
+  cat $SORTED_INVENTORY | while read line ; do
+    case $line in
+        START_SUB*) insert_submenu_begin `echo $line|cut -f2 -d" " ` ;;
+	END_SUB) insert_submenu_end ;;
+        *) insert_entry "$line" ;;
+    esac
+  done
+}
+
+# building the menu
+prepare_menu_location &&
+start_lxde_menu &&
+build_menu &&
+close_lxde_menu ||
+echo "Generating of the lxde menu has failed!"
